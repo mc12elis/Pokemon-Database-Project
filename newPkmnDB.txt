@@ -1,0 +1,175 @@
+﻿Pokemon -- BCNF
+CREATE TABLE Pokemon (
+        PokeID int, Name varchar(25) NOT NULL, Type1 int NOT NULL, Type2 int, 
+Experience int, HP int NOT NULL, Attack int NOT NULL, 
+Defense int NOT NULL, SpecialAttack int NOT NULL, SpecialDefense int NOT NULL,
+Speed int NOT NULL, StatsTotal int,
+        PRIMARY KEY (PokeID), 
+FOREIGN KEY (Type1) REFERENCES Types(TypeID), 
+FOREIGN KEY (Type2) REFERENCES Types(TypeID)
+);
+
+
+________________
+
+
+
+
+CREATE OR REPLACE TRIGGER statTotal
+BEFORE INSERT
+ON
+Pokemon
+FOR EACH ROW
+BEGIN
+    :new.StatsTotal := :new.HP + :new.Attack + :new.Defense + :new.SpecialAttack + :new.SpecialDefense + :new.Speed;
+END;
+
+
+________________
+
+
+
+
+Abilities -- BCNF
+CREATE TABLE Abilities (
+        AbilityID int, Name varchar(45) NOT NULL, primary key (AbilityID)
+);
+
+
+________________
+
+
+
+
+Types -- BCNF
+CREATE TABLE Types (
+        TypeID int, Name varchar(15) NOT NULL, primary key (TypeID)
+);
+
+
+________________
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Moves -- BCNF
+CREATE TABLE Moves (
+        MoveID int, TypeID int NOT NULL, Name varchar(25) NOT NULL, Accuracy int, 
+Uses int, Power int,
+        PRIMARY KEY (MoveID),
+        FOREIGN KEY (TypeID) REFERENCES Types(TypeID) ON DELETE CASCADE
+);
+
+
+________________
+
+
+
+
+PokemonAbilities -- 3NF
+PokeID, slot → AbilityID, isHidden
+isHidden → slot
+CREATE TABLE PokemonAbilities (
+        PokeID int, AbilityID int, Slot int, isHidden int NOT NULL, 
+primary key (PokeID, AbilityID),
+        FOREIGN KEY (PokeID) REFERENCES Pokemon(PokeID) ON DELETE CASCADE,
+        FOREIGN KEY (AbilityID) REFERENCES Abilities(AbilityID) ON DELETE CASCADE
+);
+
+
+________________
+
+
+
+
+PokemonMoves -- BCNF
+CREATE TABLE PokemonMoves (
+        PokeID int, MoveID int, Method int, expLevel int,
+        PRIMARY KEY (PokeID, MoveID, Method),
+        FOREIGN KEY (PokeID) REFERENCES Pokemon(PokeID) ON DELETE CASCADE,
+        FOREIGN KEY (MoveID) REFERENCES Moves(MoveID) ON DELETE CASCADE,
+        CHECK (expLevel <= 100),
+            CHECK (expLevel > 0)
+);
+
+
+________________
+
+
+
+
+TypeEfficacy -- BCNF
+CREATE TABLE TypeEfficacy (
+    DamageType int, TargetType int, DamageFactor number(*,1) NOT NULL,
+    PRIMARY KEY (DamageType, TargetType),
+    FOREIGN KEY (DamageType) REFERENCES Types(TypeID) ON DELETE CASCADE,
+    FOREIGN KEY (TargetType) REFERENCES Types(TypeID) ON DELETE CASCADE
+);
+
+
+
+
+
+
+CREATE OR REPLACE VIEW LeveledMoves AS
+SELECT P.PokeID, P.Name, M.Name AS Move, PM.expLevel
+FROM Pokemon P, Moves M, PokemonMoves PM
+WHERE P.PokeID = PM.PokeID AND M.MoveID = PM.MoveID AND PM.Method = 1
+ORDER BY P.PokeID, PM.expLevel ASC;
+
+
+CREATE OR REPLACE VIEW inherentAbilities AS
+SELECT P.PokeID, P.Name, A.Name AS Ability, PA.Slot, PA.isHidden
+FROM Pokemon P, Abilities A, PokemonAbilities PA
+WHERE P.PokeID = PA.PokeID AND A.AbilityID = PA.AbilityID;
+
+
+CREATE OR REPLACE VIEW BaseStats AS
+SELECT Pokemon.Name, Pokemon.HP, Pokemon.Attack, Pokemon.Defense, Pokemon.SpecialAttack, Pokemon.SpecialDefense, Pokemon.Speed, Pokemon.StatsTotal
+FROM Pokemon;
+
+
+CREATE INDEX movePower
+ON Moves (Power);
+
+
+CREATE INDEX moveUses
+ON Moves (Uses);
+
+
+CREATE INDEX pokeStats
+ON Pokemon (StatsTotal);
+
+
+CREATE INDEX pokeHP
+ON Pokemon(HP);
+
+
+CREATE INDEX pokeAttack 
+ON Pokemon(Attack);
+
+
+CREATE INDEX pokeDefense
+ON Pokemon(Defense);
+
+
+CREATE INDEX pokeSpAttack 
+ON Pokemon(SpecialAttack);
+
+
+CREATE INDEX pokeSpDefense 
+ON Pokemon(SpecialDefense);
+
+
+CREATE INDEX pokeSpeed
+ON Pokemon(Speed);
